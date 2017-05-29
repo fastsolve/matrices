@@ -18,6 +18,11 @@ def parse_args(description):
                         help='ID of the Google Drive folder to containt file',
                         default="0ByTwsK5_Tl_PemN0QVlYem11Y00")
 
+    parser.add_argument('-s', '--silent',
+                        help='silent or quiet mode. ',
+                        default=False,
+                        action='store_true')
+
     parser.add_argument('files', metavar='FILE',
                         nargs='+',
                         help='local file name to upload')
@@ -51,17 +56,23 @@ def authenticate():
     return gauth
 
 
-def upload_files(gauth, folder_id, files):
+def upload_files(gauth, folder_id, files, silent):
     "Print file information into a file"
-
+    import sys
     from pydrive.drive import GoogleDrive
     drive = GoogleDrive(gauth)
 
     for fname in files:
+        if not silent:
+            sys.stdout.write('Uploading file ' + fname + '...')
+
         f = drive.CreateFile({"parents":
                              [{"kind": "drive#fileLink", "id": folder_id}]})
         f.SetContentFile(fname)
         f.Upload()
+
+        if not silent:
+            sys.stdout.write('Done\n')
 
 
 if __name__ == "__main__":
@@ -69,4 +80,4 @@ if __name__ == "__main__":
     args = parse_args(description=__doc__)
     gauth = authenticate()
 
-    upload_files(gauth, args.parent, args.files)
+    upload_files(gauth, args.parent, args.files, args.silent)
