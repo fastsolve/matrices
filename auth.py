@@ -4,8 +4,6 @@
 Authenticate for Google Drive access.
 """
 
-import sys
-
 
 def authenticate(src_dir, mode):
     """"
@@ -13,6 +11,7 @@ def authenticate(src_dir, mode):
     If mode contains "w", then authenticate for read/write mode.
     """
     from pydrive.auth import GoogleAuth
+    import sys
 
     # Authenticate Google account
     gauth = GoogleAuth()
