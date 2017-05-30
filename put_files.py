@@ -5,6 +5,8 @@ Upload a list of files to Google Drive using PyDrive.
 User authentication is required.
 """
 
+from list_files import authenticate, list_files
+
 
 def parse_args(description):
     "Parse command-line arguments"
@@ -32,42 +34,24 @@ def parse_args(description):
     return args
 
 
-def authenticate():
-    "Authenticate using web browser and cache the credential"
-    from pydrive.auth import GoogleAuth
-
-    # Authenticate Google account
-    gauth = GoogleAuth()
-
-    # Try to load saved client credentials
-    gauth.LoadCredentialsFile("mycreds.txt")
-    if gauth.credentials is None:
-        # Authenticate if they're not there
-        gauth.LocalWebserverAuth()
-    elif gauth.access_token_expired:
-        # Refresh them if expired
-        gauth.Refresh()
-    else:
-        # Initialize the saved creds
-        gauth.Authorize()
-    # Save the current credentials to a file
-    gauth.SaveCredentialsFile("mycreds.txt")
-
-    return gauth
-
-
-def upload_files(gauth, folder_id, files, silent):
+def upload_files(drive, folder_id, files, silent):
     "Print file information into a file"
     import sys
-    from pydrive.drive import GoogleDrive
-    drive = GoogleDrive(gauth)
+
+    ls = list_files(drive, folder_id)
 
     for fname in files:
-        if not silent:
-            sys.stdout.write('Uploading file ' + fname + '...')
+        if fname in ls:
+            if not silent:
+                sys.stdout.write('Replacing file ' + fname + ' ... ')
+            f = drive.CreateFile({'id': ls[fname][0]})
+        else:
+            f = drive.CreateFile({"parents":
+                                 [{"kind": "drive#fileLink",
+                                  "id": folder_id}]})
+            if not silent:
+                sys.stdout.write('Uploading file ' + fname + ' ... ')
 
-        f = drive.CreateFile({"parents":
-                             [{"kind": "drive#fileLink", "id": folder_id}]})
         f.SetContentFile(fname)
         f.Upload()
 
@@ -76,8 +60,13 @@ def upload_files(gauth, folder_id, files, silent):
 
 
 if __name__ == "__main__":
+    import os
+    from pydrive.drive import GoogleDrive
 
     args = parse_args(description=__doc__)
-    gauth = authenticate()
+    src_dir = os.path.dirname(os.path.realpath(__file__))
 
-    upload_files(gauth, args.parent, args.files, args.silent)
+    gauth = authenticate(src_dir, "w")
+    drive = GoogleDrive(gauth)
+
+    upload_files(drive, args.parent, args.files, args.silent)

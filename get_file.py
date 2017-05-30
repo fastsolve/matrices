@@ -16,22 +16,30 @@ def parse_args(description):
     # Process command-line arguments
     parser = argparse.ArgumentParser(description=description)
 
+    parser.add_argument('-p', '--parent',
+                        help='ID of parent folder on Google Drive',
+                        default="0ByTwsK5_Tl_PemN0QVlYem11Y00")
+
     parser.add_argument('-i', '--id',
                         help='file ID on Google Drive',
                         default="")
 
-    parser.add_argument('-l', '--length',
-                        type=int,
-                        help='size of the file in bytes',
-                        default=0)
+    parser.add_argument('-o', '--outfile',
+                        help='output file name; if missing, write to stdout',
+                        default="")
+
+    parser.add_argument('-O', '--remote-name',
+                        help='use remote file name for local file name',
+                        action="store_true",
+                        default=False)
 
     parser.add_argument('-s', '--silent',
-                        help='silent or quiet mode. ',
                         default=False,
-                        action='store_true')
+                        action='store_true',
+                        help='silent or quiet mode. ')
 
     parser.add_argument('file',
-                        help='output file name',
+                        help='file name to be downloaded',
                         default="")
 
     args = parser.parse_args()
@@ -39,7 +47,7 @@ def parse_args(description):
     return args
 
 
-def download_file_from_google_drive(id, outfile, filesize):
+def download_file(id, outfile, filesize):
     "Download file with given ID from Google Drive"
     URL = "https://drive.google.com/uc?export=download"
 
@@ -92,36 +100,52 @@ def write_response_content(response, outfile, filesize):
             if bar is not None:
                 count += len(chunk)
                 bar.update(count)
-    bar.finish()
+
+    if bar:
+        bar.finish()
 
     if outfile:
         f.close()
 
 
-def get_file_info(filename):
-    'Obtain file ID and size from fileinfo'
-
-    with open('fileinfo') as f:
-        for s in f:
-            if s.find('title: ' + filename) == 0:
-                file_id = s[s.find('id: 0ByTwsK5_Tl_')+4:s.find(', size: ')]
-                size = int(s[s.find('size: ')+6:-2])
-                return file_id, size
-
-    print('Error: could not find filename ' + filename)
-    sys.exit(-1)
-
-
 if __name__ == "__main__":
+    import os
+    from pydrive.drive import GoogleDrive
+    from auth import authenticate
+    from list_files import list_files
+
+    # Process command-line arguments
     args = parse_args(description=__doc__)
 
-    file_id, outfile, size = args.id, args.file, args.length
+    # Athenticate
+    src_dir = os.path.dirname(os.path.realpath(__file__))
+    gauth = authenticate(src_dir, "r")
 
-    if not file_id:
-        file_id, size = get_file_info(outfile)
+    # Create drive object
+    drive = GoogleDrive(gauth)
 
-    # Disable progressbar in silent mode
+    # Obtain file name and size
+    if args.id:
+        file_id = args.id
+        f = drive.CreateFile({'id': args.id})
+        size = int(f['fileSize'])
+        filename = f['title']
+    elif args.file:
+        ls = list_files(drive, args.parent)
+        try:
+            file_id, size = ls[args.file]
+        except:
+            print('File', args.file, 'does not exist.')
+            sys.exit(-1)
+        filename = args.file
+
+    if args.remote_name:
+        outfile = filename
+    else:
+        outfile = args.outfile
+
+    # Disable progressbar in silient mode
     if args.silent:
         size = 0
 
-    download_file_from_google_drive(file_id, outfile, size)
+    download_file(file_id, outfile, size)

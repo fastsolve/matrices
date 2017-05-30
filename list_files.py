@@ -1,58 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 List file names, their IDs and sizes in the test suite using mydrive
 """
 
 
-def parse_args(description):
-    "Parse command-line arguments"
-
-    import argparse
-
-    # Process command-line arguments
-    parser = argparse.ArgumentParser(description=description)
-
-    parser.add_argument('id',
-                        nargs='?',
-                        help='ID of the Google Drive folder to be listed',
-                        default="0ByTwsK5_Tl_PemN0QVlYem11Y00")
-
-    args = parser.parse_args()
-
-    return args
-
-
-def authenticate():
-    "Authenticate using web browser and cache the credential"
-    from pydrive.auth import GoogleAuth
-
-    # Authenticate Google account
-    gauth = GoogleAuth()
-
-    # Try to load saved client credentials
-    gauth.LoadCredentialsFile("mycreds.txt")
-    if gauth.credentials is None:
-        # Authenticate if they're not there
-        gauth.LocalWebserverAuth()
-    elif gauth.access_token_expired:
-        # Refresh them if expired
-        gauth.Refresh()
-    else:
-        # Initialize the saved creds
-        gauth.Authorize()
-    # Save the current credentials to a file
-    gauth.SaveCredentialsFile("mycreds.txt")
-
-    return gauth
-
-
-def list_files(gauth, folder_id, filename):
-    "Print file information into a file"
-
-    from pydrive.drive import GoogleDrive
-
-    drive = GoogleDrive(gauth)
+def list_files(drive, folder_id):
+    "Obtain list of files and put into dictionary"
 
     # Obtain the list of files
     file_list = drive.ListFile({'q': "'" + folder_id + "' in parents " +
@@ -61,19 +15,37 @@ def list_files(gauth, folder_id, filename):
     # List files in sorted order
     ls = {}
     for file1 in file_list:
-        ls[file1['title']] = file1['id'], file1['fileSize']
+        ls[file1['title']] = file1['id'], int(file1['fileSize'])
 
-    with open(filename, "w") as f:
-        for key, value in sorted(ls.iteritems()):
-            f.write('title: ' + key + ', ' +
-                    'id: ' + value[0] + ', ' +
-                    'size: ' + value[1] + ';\n')
+    return ls
 
 
 if __name__ == "__main__":
-    folder_id = parse_args(description=__doc__).id
+    import os
+    from pydrive.drive import GoogleDrive
+    from auth import authenticate
+    import argparse
 
-    gauth = authenticate()
+    # Process command-line arguments
+    parser = argparse.ArgumentParser(description=__doc__)
+
+    parser.add_argument('id',
+                        nargs='?',
+                        help='ID of the Google Drive folder to be listed',
+                        default="0ByTwsK5_Tl_PemN0QVlYem11Y00")
+
+    args = parser.parse_args()
+    folder_id = args.id
+
+    # Athenticate
+    src_dir = os.path.dirname(os.path.realpath(__file__))
+    gauth = authenticate(src_dir, "r")
 
     # Create drive object
-    list_files(gauth, folder_id, "fileinfo")
+    drive = GoogleDrive(gauth)
+    ls = list_files(drive, folder_id)
+
+    for key, value in sorted(ls.items()):
+        print(key + ', ' +
+              'id: ' + value[0] + ', ' +
+              'size: ' + str(value[1]) + ';')
