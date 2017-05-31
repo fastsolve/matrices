@@ -27,8 +27,7 @@ def authenticate(src_dir, mode):
         # Try to load saved client credentials
         gauth.LoadCredentialsFile(src_dir + "/" + credfile)
         if gauth.credentials is None:
-            # Authenticate if they're not there
-            gauth.LocalWebserverAuth()
+            raise Exception('Empty credential')
         elif gauth.access_token_expired:
             # Refresh them if expired
             gauth.Refresh()
@@ -38,8 +37,8 @@ def authenticate(src_dir, mode):
     except KeyboardInterrupt:
         sys.exit(-1)
     except:
+        # Authenticate if they're not there
         gauth.LocalWebserverAuth()
-    finally:
         # Save the current credentials to a file
         gauth.SaveCredentialsFile(src_dir + "/" + credfile)
 
