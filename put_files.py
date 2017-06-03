@@ -5,7 +5,8 @@ Upload a list of files to Google Drive using PyDrive.
 User authentication is required.
 """
 
-from list_files import authenticate, list_files
+from auth import authenticate
+from list_files import list_files
 
 
 def parse_args(description):
